@@ -1,0 +1,46 @@
+name: Add sales enablement asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      url:
+        description: "Asset URL (e.g. hubs.ly/... or sydecar.io/...)"
+        required: true
+        type: string
+      title:
+        description: "Asset title (leave blank to auto-detect from URL)"
+        required: false
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  add:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install requests anthropic
+
+      - name: Add asset
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          ASSET_URL: ${{ inputs.url }}
+          ASSET_TITLE: ${{ inputs.title }}
+        run: python add_asset.py
+
+      - name: Commit and push
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git diff --quiet index.html && echo "No changes" && exit 0
+          git add index.html
+          TITLE=$(git diff --cached index.html | grep '^\+.*{ title:' | head -1 | sed 's/.*title: "\([^"]*\)".*/\1/')
+          git commit -m "Add asset: ${TITLE}"
+          git push
