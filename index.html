@@ -791,10 +791,11 @@ const TYPE_LABELS = {
 // ============================================================================
 // FORM OPTIONS
 // ============================================================================
-const DEAL_STAGES = ["SQL", "Warm Opportunity", "Hot Opportunity"];
-const PERSONAS = ["Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "RIA", "Broker-Dealer", "Other"];
-const COMPETITORS = ["None / not sure", "AngelList", "Carta", "Allocations", "Manual / DIY (law firm)"];
-const CHALLENGES = ["Speed", "Pricing", "Compliance / regulatory questions", "Secondary transactions", "Building trust with LPs", "Layered SPVs / complex structures", "Building a track record / LP base", "Sydecar credibility / brand"];
+// Values pulled directly from HubSpot property definitions
+const DEAL_STAGES = ["SQL", "Lead", "Lukewarm", "Hot", "25%", "50%", "75%", "90%", "Warm Relationship", "Keep Warm", "Reached Out / Seeking Intro", "NDA", "In Dialogue", "Term Sheet / Negotiating Terms", "Agreement", "Onboarding", "Implementation", "Appointment Scheduled", "Qualified To Buy", "Presentation Scheduled", "Decision Maker Bought-In", "Contract Sent", "Signed", "Client Success", "NEXT FUND"];
+const PERSONAS = ["Accelerator", "Angel Group", "Attorney", "Broker-Dealer", "Emerging Fund Manager", "Enterprise", "Family Office", "Founder", "Fund CFO", "Fund Manager", "Fund of Funds", "Hybrid Fund/Syndicate", "Influencer", "Investment Community", "Limited Partner", "Occasional Deal Lead", "Partnership", "Platform", "RIA", "Syndicate Lead", "Upmarket Emerging Fund Manager", "Venture Studio"];
+const COMPETITORS = ["None / not sure", "Angel List", "Carta", "Allocations", "Manual/No Software", "Aduro", "Canopy", "Odin", "Finally Fund Admin", "Juniper Square", "Loon Creek", "Flow Inc", "Venture 360", "PropelX", "Sally", "Other"];
+const CHALLENGES = ["Capital Calls", "Co-Management", "Co-Syndication", "Cost", "Couldn't Fundraise", "Custom Docs", "Fee Structure", "Fund Migration", "GP/LP Structure", "Integrations", "International Passthrough", "Jurisdiction", "Multi Close", "No Deal Ready/Lost Deal", "Non Responsive", "Non-Accredited Investors", "Operating Company Investment", "Real Estate", "Take Over Existing SPVs", "Vendor Risk", "Wanted White Label", "506c"];
 
 // ============================================================================
 // COMPONENTS
@@ -1285,8 +1286,8 @@ function ProspectSearch({ onSelect }) {
         body: JSON.stringify({ action: "get_deal", dealId: deal.id })
       });
       const ctx = await resp.json();
-      setSelected({ type: "deal", label: ctx.dealName, dealStage: ctx.dealStage, persona: ctx.persona || "", contactName: ctx.contactName || "", segmentRaw: ctx.segmentRaw || "", competitor: ctx.competitor || "None / not sure", competitorRaw: ctx.competitorRaw || "" });
-      onSelect({ dealStage: ctx.dealStage, persona: ctx.persona || "", competitor: ctx.competitor || "None / not sure", challenges: ctx.challenges || [], notes: ctx.notes || "" });
+      setSelected({ type: "deal", label: ctx.dealName, dealStage: ctx.dealStage || "", segment: ctx.segment || "", competitor: ctx.competitor || "" });
+      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", nonConvertSubreason: ctx.nonConvertSubreason || "", notes: ctx.notes || "" });
     } catch (err) {}
     setSearching(false);
   };
@@ -1301,8 +1302,8 @@ function ProspectSearch({ onSelect }) {
         body: JSON.stringify({ action: "get_contact", contactId: contact.id })
       });
       const ctx = await resp.json();
-      setSelected({ type: "contact", label: ctx.contactName, dealStage: ctx.dealStage || "", persona: ctx.persona || "", company: ctx.company || "", segmentRaw: ctx.segmentRaw || "", competitor: ctx.competitor || "None / not sure", competitorRaw: ctx.competitorRaw || "" });
-      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.persona || "", competitor: ctx.competitor || "None / not sure", challenges: ctx.challenges || [], notes: ctx.notes || "" });
+      setSelected({ type: "contact", label: ctx.contactName, dealStage: ctx.dealStage || "", segment: ctx.segment || "", competitor: ctx.competitor || "", company: ctx.company || "" });
+      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", nonConvertSubreason: ctx.nonConvertSubreason || "", notes: ctx.notes || "" });
     } catch (err) {}
     setSearching(false);
   };
@@ -1325,9 +1326,9 @@ function ProspectSearch({ onSelect }) {
           <span style={{fontWeight: 500, flex: 1}}>{selected.label}</span>
           <span style={{fontSize: "0.78rem", color: "var(--gray-400)"}}>
             {selected.dealStage && `${selected.dealStage}`}
-            {selected.dealStage && selected.segmentRaw && " · "}
-            {selected.segmentRaw && `${selected.segmentRaw}`}
-            {selected.competitorRaw && selected.competitorRaw !== "None / not sure" && ` · vs ${selected.competitorRaw}`}
+            {selected.dealStage && selected.segment && " · "}
+            {selected.segment && `${selected.segment}`}
+            {selected.competitor && ` · vs ${selected.competitor}`}
           </span>
           <button type="button" onClick={handleClear} style={{background: "none", border: "none", cursor: "pointer", color: "var(--gray-400)", fontSize: "1rem", padding: "0 0.25rem"}}>&times;</button>
         </div>
@@ -1366,7 +1367,7 @@ function ProspectSearch({ onSelect }) {
               {searchResults.contacts.map(c => (
                 <button key={c.id} type="button" onClick={() => handlePickContact(c)} style={{display: "flex", width: "100%", padding: "0.5rem 0.75rem", border: "none", background: "none", cursor: "pointer", textAlign: "left", gap: "0.5rem", alignItems: "center", fontSize: "0.9rem", borderBottom: "1px solid var(--gray-50)"}}>
                   <span style={{fontWeight: 500, flex: 1}}>{c.name}</span>
-                  <span style={{fontSize: "0.75rem", color: "var(--gray-400)"}}>{c.company ? `${c.company} · ` : ""}{c.persona}</span>
+                  <span style={{fontSize: "0.75rem", color: "var(--gray-400)"}}>{c.company ? `${c.company} · ` : ""}{c.segment}</span>
                 </button>
               ))}
             </div>
@@ -1395,12 +1396,12 @@ function App() {
   const [results, setResults] = useState([]);
   const [error, setError] = useState("");
 
-  const handleProspectSelect = useCallback(({ dealStage: ds, persona: p, competitor: c, challenges: ch, notes: n }) => {
+  const handleProspectSelect = useCallback(({ dealStage: ds, persona: p, competitor: c, nonConvertSubreason: ncsr, notes: n }) => {
     if (ds) setDealStage(ds);
     if (p) setPersona(p);
     if (c) setCompetitor(c);
-    if (ch && ch.length > 0) setChallenges(prev => {
-      const merged = [...new Set([...prev, ...ch])];
+    if (ncsr) setChallenges(prev => {
+      const merged = [...new Set([...prev, ncsr])];
       return merged;
     });
     if (n) setContext(n);

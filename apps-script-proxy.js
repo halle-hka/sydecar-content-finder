@@ -58,117 +58,57 @@ function hubspotFetch(path, options) {
 }
 
 // ---------------------------------------------------------------------------
-// Deal stage mapping: HubSpot values -> Content Finder categories
+// Deal stage label lookup: HubSpot internal IDs -> display labels
 // ---------------------------------------------------------------------------
-var STAGE_MAP = {
-  // Sales Pipeline
-  "17296960": "SQL",                    // SQL
-  "102737501": "SQL",                   // Lead
-  "103684772": "Warm Opportunity",      // Lukewarm
-  "126914314": "Warm Opportunity",      // Warm Relationship
-  "45448785": "Warm Opportunity",       // 50%
-  "45439091": "Warm Opportunity",       // 25%
-  "45439092": "Warm Opportunity",       // 50%
-  "103684773": "Hot Opportunity",       // Hot
-  "45448786": "Hot Opportunity",        // 75%
-  "45448787": "Hot Opportunity",        // 90%
-  "45439093": "Hot Opportunity",        // 75%
-  "45439094": "Hot Opportunity",        // 90%
-  // Other pipeline stages
-  "101994244": "SQL",                   // Appointment scheduled
-  "101994245": "Warm Opportunity",      // Qualified to buy
-  "101994246": "Warm Opportunity",      // Presentation scheduled
-  "101994247": "Hot Opportunity",       // Decision Maker Bought-In
-  "101994248": "Hot Opportunity",       // Contract sent
-  "987974538": "SQL",                   // Appointment Scheduled
-  "987974539": "Warm Opportunity",      // Qualified To Buy
-  "987974540": "Warm Opportunity",      // Presentation Scheduled
-  "987974541": "Hot Opportunity",       // Decision Maker Bought-In
-  "987974542": "Hot Opportunity",       // Signed
-  "988072561": "SQL",                   // Appointment Scheduled
-  "988072562": "Warm Opportunity",      // Qualified To Buy
-  "988072563": "Warm Opportunity",      // Presentation Scheduled
-  "988072564": "Hot Opportunity",       // Decision Maker Bought-In
-  "988072565": "Hot Opportunity",       // Signed
-  // Deal-specific
-  "134374658": "SQL",                   // Reached Out
-  "134374659": "Warm Opportunity",      // NDA
-  "134374660": "Warm Opportunity",      // In Dialogue
-  "101950501": "Hot Opportunity",       // Term Sheet
-  "101933157": "Hot Opportunity",       // Agreement
-};
-
-// ---------------------------------------------------------------------------
-// Customer segment mapping: HubSpot values -> Content Finder personas
-// ---------------------------------------------------------------------------
-var SEGMENT_MAP = {
-  "Fund Manager":               "Fund Manager",
-  "Upmarket Fund Manager":      "Fund Manager",
-  "Fund of Funds":              "Fund Manager",
-  "Family Office":              "Fund Manager",
-  "Fund CFO":                   "Fund Manager",
-  "Emerging Fund Manager":      "Emerging Manager / Syndicate",
-  "Syndicate Lead":             "Emerging Manager / Syndicate",
-  "Hybrid Fund/Syndicate":      "Emerging Manager / Syndicate",
-  "Occasional Deal Lead":       "Occasional Deal Lead",
-  "Angel Group":                "Occasional Deal Lead",
-  "Founder":                    "Founder",
-  "Studio":                     "Founder",
-  "RIA":                        "RIA",
-  "Broker-Dealer":              "Broker-Dealer",
-  "Attorney":                   "Other",
-  "Accelerator":                "Other",
-  "Enterprise":                 "Other",
-  "Influencer":                 "Other",
-  "Investment Community":       "Other",
-  "Limited Partner":            "Other",
-  "Partnership":                "Other",
-  "Platform":                   "Other",
-};
-
-// ---------------------------------------------------------------------------
-// Competitor mapping: HubSpot values -> Content Finder competitors
-// ---------------------------------------------------------------------------
-var COMPETITOR_MAP = {
-  "Angel List":           "AngelList",
-  "Carta":                "Carta",
-  "Allocations":          "Allocations",
-  "Manual/No Software":   "Manual / DIY (law firm)",
-  "Aduro":                "None / not sure",
-  "Canopy":               "None / not sure",
-  "Odin":                 "None / not sure",
-  "Finally Fund Admin":   "None / not sure",
-  "Juniper Square":       "None / not sure",
-  "Loon Creek":           "None / not sure",
-  "Flow Inc":             "None / not sure",
-  "Venture 360":          "None / not sure",
-  "PropelX":              "None / not sure",
-  "Sally":                "None / not sure",
-  "Other":                "None / not sure",
-};
-
-// ---------------------------------------------------------------------------
-// Challenge inference: map non_convert_subreason values to Content Finder challenges
-// ---------------------------------------------------------------------------
-var SUBREASON_TO_CHALLENGE = {
-  "Cost":                              "Pricing",
-  "Fee Structure":                     "Pricing",
-  "Custom Docs":                       "Compliance / regulatory questions",
-  "RIA":                               "Compliance / regulatory questions",
-  "506c":                              "Compliance / regulatory questions",
-  "Jurisdiction":                      "Compliance / regulatory questions",
-  "International Passthrough":         "Compliance / regulatory questions",
-  "GP/LP Structure":                   "Layered SPVs / complex structures",
-  "Multi Close":                       "Layered SPVs / complex structures",
-  "Take Over Existing SPVs":           "Layered SPVs / complex structures",
-  "Co-Management":                     "Layered SPVs / complex structures",
-  "Co-Syndication":                    "Layered SPVs / complex structures",
-  "Couldn't Fundraise":                "Building a track record / LP base",
-  "No Deal Ready/Lost Deal":           "Building a track record / LP base",
-  "Vendor Risk":                       "Sydecar credibility / brand",
-  "Wanted White Label":                "Sydecar credibility / brand",
-  "Capital Calls":                     "Speed",
-  "PE Investment (Frequent Distributions)": "Speed",
+var STAGE_LABELS = {
+  "17296960": "SQL",
+  "102737501": "Lead",
+  "103684772": "Lukewarm",
+  "126914314": "Warm Relationship",
+  "103684773": "Hot",
+  "45448785": "50%",
+  "45439091": "25%",
+  "45439092": "50%",
+  "45448786": "75%",
+  "45448787": "90%",
+  "45439093": "75%",
+  "45439094": "90%",
+  "104402864": "Onboarding",
+  "closedwon": "Closed won",
+  "closedlost": "Closed lost",
+  "41708151": "NEXT FUND",
+  "17296963": "CLOSED WON",
+  "17296964": "CLOSED LOST",
+  "17233781": "Keep Warm",
+  "134374658": "Reached Out / Seeking Intro",
+  "134374659": "NDA",
+  "134374660": "In Dialogue",
+  "101950501": "Term Sheet / Negotiating Terms",
+  "101933157": "Agreement",
+  "55623526": "Implementation",
+  "45440513": "Client Success",
+  "17233787": "Closed lost",
+  "101994244": "Appointment Scheduled",
+  "101994245": "Qualified To Buy",
+  "101994246": "Presentation Scheduled",
+  "101994247": "Decision Maker Bought-In",
+  "101994248": "Contract Sent",
+  "101994249": "Closed Won",
+  "101994250": "Closed Lost",
+  "987974538": "Appointment Scheduled",
+  "987974539": "Qualified To Buy",
+  "987974540": "Presentation Scheduled",
+  "987974541": "Decision Maker Bought-In",
+  "987974542": "Signed",
+  "987974543": "Closed Won",
+  "987974544": "Closed Lost",
+  "988072561": "Appointment Scheduled",
+  "988072562": "Qualified To Buy",
+  "988072563": "Presentation Scheduled",
+  "988072564": "Decision Maker Bought-In",
+  "988072565": "Signed",
+  "988072566": "Closed Won",
+  "988072567": "Closed Lost",
 };
 
 // ---------------------------------------------------------------------------
@@ -185,13 +125,12 @@ function searchDeals(query) {
   });
 
   var results = (data.results || []).map(function(d) {
-    var stage = STAGE_MAP[d.properties.dealstage] || "SQL";
+    var stageLabel = STAGE_LABELS[d.properties.dealstage] || d.properties.dealstage || "";
     return {
       id: d.id,
       type: "deal",
       name: d.properties.dealname || "Untitled Deal",
-      dealStage: stage,
-      dealStageRaw: d.properties.dealstage,
+      dealStage: stageLabel,
       amount: d.properties.amount || null
     };
   });
@@ -214,7 +153,6 @@ function searchContacts(query) {
 
   var results = (data.results || []).map(function(c) {
     var seg = c.properties.customer_segment || "";
-    var persona = SEGMENT_MAP[seg] || "Other";
     var name = [(c.properties.firstname || ""), (c.properties.lastname || "")].join(" ").trim();
     return {
       id: c.id,
@@ -222,8 +160,7 @@ function searchContacts(query) {
       name: name || c.properties.email || "Unknown",
       email: c.properties.email || "",
       company: c.properties.company || "",
-      persona: persona,
-      segmentRaw: seg
+      segment: seg
     };
   });
 
@@ -234,50 +171,33 @@ function searchContacts(query) {
 // Action: Get full context for a deal (deal stage + associated contact segment)
 // ---------------------------------------------------------------------------
 function getDealContext(dealId) {
-  // Get the deal with description for challenge inference
   var deal = hubspotFetch("/crm/v3/objects/deals/" + dealId + "?properties=dealname,dealstage,amount,pipeline,description&associations=contacts", {});
 
-  var stage = STAGE_MAP[deal.properties.dealstage] || "SQL";
+  var stageLabel = STAGE_LABELS[deal.properties.dealstage] || deal.properties.dealstage || "";
   var result = {
     dealId: dealId,
     dealName: deal.properties.dealname || "",
-    dealStage: stage,
-    dealStageRaw: deal.properties.dealstage,
-    persona: null,
-    segmentRaw: null,
-    contactName: null,
-    contactEmail: null,
-    competitor: "None / not sure",
-    competitorRaw: null,
-    challenges: [],
+    dealStage: stageLabel,
+    segment: "",
+    contactName: "",
+    contactEmail: "",
+    competitor: "",
+    nonConvertSubreason: "",
     notes: deal.properties.description || ""
   };
 
-  // Get associated contacts for segment, competitor, subreason, and notes
   var assocContacts = (deal.associations && deal.associations.contacts &&
     deal.associations.contacts.results) || [];
 
   if (assocContacts.length > 0) {
     var contactId = assocContacts[0].id;
     var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,competitor,non_convert_subreason,lead_qualification_notes", {});
-    var seg = contact.properties.customer_segment || "";
-    result.persona = SEGMENT_MAP[seg] || "Other";
-    result.segmentRaw = seg;
+    result.segment = contact.properties.customer_segment || "";
     result.contactName = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
     result.contactEmail = contact.properties.email || "";
+    result.competitor = contact.properties.competitor || "";
+    result.nonConvertSubreason = contact.properties.non_convert_subreason || "";
 
-    // Competitor
-    var comp = contact.properties.competitor || "";
-    result.competitorRaw = comp;
-    result.competitor = COMPETITOR_MAP[comp] || "None / not sure";
-
-    // Challenges from non_convert_subreason
-    var subreason = contact.properties.non_convert_subreason || "";
-    if (subreason && SUBREASON_TO_CHALLENGE[subreason]) {
-      result.challenges.push(SUBREASON_TO_CHALLENGE[subreason]);
-    }
-
-    // Append lead qualification notes for challenge inference
     var lqNotes = contact.properties.lead_qualification_notes || "";
     if (lqNotes) {
       result.notes = (result.notes ? result.notes + "\n\n" : "") + lqNotes;
@@ -293,42 +213,28 @@ function getDealContext(dealId) {
 function getContactContext(contactId) {
   var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,company,competitor,non_convert_subreason,lead_qualification_notes&associations=deals", {});
 
-  var seg = contact.properties.customer_segment || "";
   var name = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
-
-  // Competitor
-  var comp = contact.properties.competitor || "";
-
-  // Challenges from non_convert_subreason
-  var challenges = [];
-  var subreason = contact.properties.non_convert_subreason || "";
-  if (subreason && SUBREASON_TO_CHALLENGE[subreason]) {
-    challenges.push(SUBREASON_TO_CHALLENGE[subreason]);
-  }
 
   var result = {
     contactId: contactId,
     contactName: name,
     contactEmail: contact.properties.email || "",
     company: contact.properties.company || "",
-    persona: SEGMENT_MAP[seg] || "Other",
-    segmentRaw: seg,
-    dealStage: null,
-    dealName: null,
-    competitor: COMPETITOR_MAP[comp] || "None / not sure",
-    competitorRaw: comp,
-    challenges: challenges,
+    segment: contact.properties.customer_segment || "",
+    dealStage: "",
+    dealName: "",
+    competitor: contact.properties.competitor || "",
+    nonConvertSubreason: contact.properties.non_convert_subreason || "",
     notes: contact.properties.lead_qualification_notes || ""
   };
 
-  // Get associated deals for deal stage and description
   var assocDeals = (contact.associations && contact.associations.deals &&
     contact.associations.deals.results) || [];
 
   if (assocDeals.length > 0) {
     var dealId = assocDeals[0].id;
     var deal = hubspotFetch("/crm/v3/objects/deals/" + dealId + "?properties=dealname,dealstage,description", {});
-    result.dealStage = STAGE_MAP[deal.properties.dealstage] || "SQL";
+    result.dealStage = STAGE_LABELS[deal.properties.dealstage] || deal.properties.dealstage || "";
     result.dealName = deal.properties.dealname || "";
     var dealDesc = deal.properties.description || "";
     if (dealDesc) {
