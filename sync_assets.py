@@ -190,15 +190,17 @@ def main():
         return
 
     # Insert new lines before the closing ];
-    # Find the last asset entry and the ];
-    match = re.search(r"(  \{ title: [^\n]+)\n\];", html)
+    # Find the last asset entry and the ]; (allow blank lines between)
+    match = re.search(r"(  \{ title: [^\n]+)\s*\n\];", html)
     if not match:
         print("Could not find ASSETS array end in index.html")
         return
 
     insert_point = match.end(1)
-    insert_text = ",\n" + ",\n".join(new_lines)
-    html = html[:insert_point] + insert_text + html[insert_point:]
+    # Remove any trailing whitespace/newlines before ];, then rebuild
+    end_bracket = html.index("];", insert_point)
+    insert_text = ",\n" + ",\n".join(new_lines) + "\n"
+    html = html[:insert_point] + insert_text + html[end_bracket:]
 
     with open(HTML_FILE, "w") as f:
         f.write(html)
