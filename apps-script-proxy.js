@@ -168,6 +168,70 @@ function searchContacts(query) {
 }
 
 // ---------------------------------------------------------------------------
+// Fetch engagement notes, meetings, and calls for a contact
+// ---------------------------------------------------------------------------
+function getEngagementNotes(contactId) {
+  var allNotes = [];
+
+  // Fetch notes
+  try {
+    var notesAssoc = hubspotFetch("/crm/v4/objects/contacts/" + contactId + "/associations/notes", {});
+    var noteIds = (notesAssoc.results || []).map(function(r) { return r.toObjectId; }).slice(0, 10);
+    for (var i = 0; i < noteIds.length; i++) {
+      try {
+        var note = hubspotFetch("/crm/v3/objects/notes/" + noteIds[i] + "?properties=hs_note_body,hs_timestamp", {});
+        var body = note.properties.hs_note_body || "";
+        // Strip HTML tags
+        body = body.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+        if (body) allNotes.push({ type: "note", date: note.properties.hs_timestamp || "", body: body });
+      } catch(e) {}
+    }
+  } catch(e) {}
+
+  // Fetch meetings
+  try {
+    var meetingsAssoc = hubspotFetch("/crm/v4/objects/contacts/" + contactId + "/associations/meetings", {});
+    var meetingIds = (meetingsAssoc.results || []).map(function(r) { return r.toObjectId; }).slice(0, 10);
+    for (var j = 0; j < meetingIds.length; j++) {
+      try {
+        var meeting = hubspotFetch("/crm/v3/objects/meetings/" + meetingIds[j] + "?properties=hs_meeting_title,hs_meeting_body,hs_meeting_start_time,hs_internal_meeting_notes", {});
+        var mBody = (meeting.properties.hs_meeting_body || "") + " " + (meeting.properties.hs_internal_meeting_notes || "");
+        mBody = mBody.replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+        var mTitle = meeting.properties.hs_meeting_title || "";
+        if (mBody || mTitle) allNotes.push({ type: "meeting", date: meeting.properties.hs_meeting_start_time || "", title: mTitle, body: mBody });
+      } catch(e) {}
+    }
+  } catch(e) {}
+
+  // Fetch calls
+  try {
+    var callsAssoc = hubspotFetch("/crm/v4/objects/contacts/" + contactId + "/associations/calls", {});
+    var callIds = (callsAssoc.results || []).map(function(r) { return r.toObjectId; }).slice(0, 5);
+    for (var k = 0; k < callIds.length; k++) {
+      try {
+        var call = hubspotFetch("/crm/v3/objects/calls/" + callIds[k] + "?properties=hs_call_title,hs_call_body,hs_timestamp", {});
+        var cBody = (call.properties.hs_call_body || "").replace(/<[^>]+>/g, " ").replace(/&nbsp;/g, " ").replace(/\s+/g, " ").trim();
+        if (cBody) allNotes.push({ type: "call", date: call.properties.hs_timestamp || "", body: cBody });
+      } catch(e) {}
+    }
+  } catch(e) {}
+
+  // Sort by date descending
+  allNotes.sort(function(a, b) { return (b.date || "").localeCompare(a.date || ""); });
+
+  // Concatenate into a single text, capped at ~3000 chars to keep response fast
+  var combined = "";
+  for (var m = 0; m < allNotes.length; m++) {
+    var entry = "[" + allNotes[m].type.toUpperCase() + (allNotes[m].date ? " " + allNotes[m].date.substring(0, 10) : "") + "] " +
+      (allNotes[m].title ? allNotes[m].title + ": " : "") + allNotes[m].body + "\n\n";
+    if (combined.length + entry.length > 3000) break;
+    combined += entry;
+  }
+
+  return combined.trim();
+}
+
+// ---------------------------------------------------------------------------
 // Action: Get full context for a deal (deal stage + associated contact segment)
 // ---------------------------------------------------------------------------
 function getDealContext(dealId) {
@@ -182,7 +246,7 @@ function getDealContext(dealId) {
     contactName: "",
     contactEmail: "",
     competitor: "",
-    nonConvertSubreason: "",
+    meetingNotes: "",
     notes: deal.properties.description || ""
   };
 
@@ -191,17 +255,19 @@ function getDealContext(dealId) {
 
   if (assocContacts.length > 0) {
     var contactId = assocContacts[0].id;
-    var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,competitor,non_convert_subreason,lead_qualification_notes", {});
+    var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,competitor,lead_qualification_notes", {});
     result.segment = contact.properties.customer_segment || "";
     result.contactName = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
     result.contactEmail = contact.properties.email || "";
     result.competitor = contact.properties.competitor || "";
-    result.nonConvertSubreason = contact.properties.non_convert_subreason || "";
 
     var lqNotes = contact.properties.lead_qualification_notes || "";
     if (lqNotes) {
       result.notes = (result.notes ? result.notes + "\n\n" : "") + lqNotes;
     }
+
+    // Fetch engagement notes for this contact
+    result.meetingNotes = getEngagementNotes(contactId);
   }
 
   return result;
@@ -211,7 +277,7 @@ function getDealContext(dealId) {
 // Action: Get contact context (segment + associated deal stage)
 // ---------------------------------------------------------------------------
 function getContactContext(contactId) {
-  var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,company,competitor,non_convert_subreason,lead_qualification_notes&associations=deals", {});
+  var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,company,competitor,lead_qualification_notes&associations=deals", {});
 
   var name = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
 
@@ -224,7 +290,7 @@ function getContactContext(contactId) {
     dealStage: "",
     dealName: "",
     competitor: contact.properties.competitor || "",
-    nonConvertSubreason: contact.properties.non_convert_subreason || "",
+    meetingNotes: "",
     notes: contact.properties.lead_qualification_notes || ""
   };
 
@@ -241,6 +307,9 @@ function getContactContext(contactId) {
       result.notes = (result.notes ? result.notes + "\n\n" : "") + dealDesc;
     }
   }
+
+  // Fetch engagement notes for this contact
+  result.meetingNotes = getEngagementNotes(contactId);
 
   return result;
 }

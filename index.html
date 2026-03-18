@@ -298,6 +298,36 @@
     color: var(--gray-700);
     white-space: nowrap;
   }
+  .chip-input-wrap {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.35rem;
+    padding: 0.45rem 0.6rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 8px;
+    background: var(--white);
+    min-height: 42px;
+    align-items: center;
+    cursor: text;
+  }
+  .chip-input-wrap:focus-within {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  }
+  .chip-text-input {
+    border: none;
+    outline: none;
+    background: transparent;
+    font-size: 0.9rem;
+    flex: 1;
+    min-width: 120px;
+    padding: 0.15rem 0;
+    color: var(--gray-800);
+    font-family: var(--font-sans);
+  }
+  .chip-text-input::placeholder {
+    color: var(--gray-400);
+  }
   .chip-remove {
     background: none;
     border: none;
@@ -1287,7 +1317,7 @@ function ProspectSearch({ onSelect }) {
       });
       const ctx = await resp.json();
       setSelected({ type: "deal", label: ctx.dealName, dealStage: ctx.dealStage || "", segment: ctx.segment || "", competitor: ctx.competitor || "" });
-      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", nonConvertSubreason: ctx.nonConvertSubreason || "", notes: ctx.notes || "" });
+      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", meetingNotes: ctx.meetingNotes || "", notes: ctx.notes || "" });
     } catch (err) {}
     setSearching(false);
   };
@@ -1303,7 +1333,7 @@ function ProspectSearch({ onSelect }) {
       });
       const ctx = await resp.json();
       setSelected({ type: "contact", label: ctx.contactName, dealStage: ctx.dealStage || "", segment: ctx.segment || "", competitor: ctx.competitor || "", company: ctx.company || "" });
-      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", nonConvertSubreason: ctx.nonConvertSubreason || "", notes: ctx.notes || "" });
+      onSelect({ dealStage: ctx.dealStage || "", persona: ctx.segment || "", competitor: ctx.competitor || "", meetingNotes: ctx.meetingNotes || "", notes: ctx.notes || "" });
     } catch (err) {}
     setSearching(false);
   };
@@ -1396,16 +1426,56 @@ function App() {
   const [results, setResults] = useState([]);
   const [error, setError] = useState("");
 
-  const handleProspectSelect = useCallback(({ dealStage: ds, persona: p, competitor: c, nonConvertSubreason: ncsr, notes: n }) => {
+  const [analyzingNotes, setAnalyzingNotes] = useState(false);
+
+  const handleProspectSelect = useCallback(async ({ dealStage: ds, persona: p, competitor: c, meetingNotes: mn, notes: n }) => {
     if (ds) setDealStage(ds);
     if (p) setPersona(p);
     if (c) setCompetitor(c);
-    if (ncsr) setChallenges(prev => {
-      const merged = [...new Set([...prev, ncsr])];
-      return merged;
-    });
     if (n) setContext(n);
-  }, []);
+
+    // Use Claude to extract challenges from meeting notes
+    if (mn && apiKey) {
+      setAnalyzingNotes(true);
+      try {
+        const resp = await fetch("https://api.anthropic.com/v1/messages", {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "x-api-key": apiKey,
+            "anthropic-version": "2023-06-01",
+            "anthropic-dangerous-direct-browser-access": "true"
+          },
+          body: JSON.stringify({
+            model: "claude-sonnet-4-20250514",
+            max_tokens: 256,
+            messages: [{ role: "user", content: `You are analyzing sales meeting notes for Sydecar, a private markets infrastructure platform.
+
+Based on these notes, identify the prospect's key challenges or priorities. Return a JSON array of short challenge phrases (2-5 words each, max 5 items). Focus on what matters most to them: speed/timing, cost/pricing, compliance, trust, complexity, track record, etc.
+
+If the notes don't reveal clear challenges, return an empty array [].
+
+Meeting notes:
+${mn}
+
+Return ONLY a JSON array of strings, nothing else. Example: ["Speed to close", "Pricing concerns", "LP reporting"]` }]
+          })
+        });
+        if (resp.ok) {
+          const data = await resp.json();
+          let text = data.content[0].text.trim();
+          text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+          const extracted = JSON.parse(text);
+          if (Array.isArray(extracted) && extracted.length > 0) {
+            setChallenges(extracted);
+          }
+        }
+      } catch (err) {
+        // Silently fail — user can still pick challenges manually
+      }
+      setAnalyzingNotes(false);
+    }
+  }, [apiKey]);
 
   const handleSetKey = (e) => {
     e.preventDefault();
@@ -1584,7 +1654,31 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
             <SelectField id="dealStage" label="Deal Stage" options={DEAL_STAGES} value={dealStage} onChange={setDealStage} required placeholder="Select..." />
             <SelectField id="persona" label="Prospect Persona" options={PERSONAS} value={persona} onChange={setPersona} required placeholder="Select..." />
             <SelectField id="competitor" label="Competitor Mentioned" options={COMPETITORS} value={competitor} onChange={setCompetitor} />
-            <MultiSelect id="challenge" label="Key Challenge(s)" options={CHALLENGES} selected={challenges} onChange={setChallenges} />
+            <div className="form-group">
+              <label htmlFor="challenge">Key Challenge(s) {analyzingNotes && <span style={{fontWeight: 400, textTransform: "none", color: "var(--primary)", fontSize: "0.75rem"}}> Analyzing notes...</span>}</label>
+              <div className="chip-input-wrap">
+                {challenges.map(ch => (
+                  <span key={ch} className="chip" onClick={() => setChallenges(prev => prev.filter(c => c !== ch))}>{ch} &times;</span>
+                ))}
+                <input
+                  id="challenge"
+                  type="text"
+                  className="chip-text-input"
+                  placeholder={challenges.length === 0 ? (analyzingNotes ? "Analyzing meeting notes..." : "Type a challenge and press Enter") : "Add another..."}
+                  disabled={analyzingNotes}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      const val = e.target.value.trim();
+                      if (val && !challenges.includes(val)) {
+                        setChallenges(prev => [...prev, val]);
+                        e.target.value = "";
+                      }
+                    }
+                  }}
+                />
+              </div>
+            </div>
             <div className="form-group full-width">
               <label htmlFor="context">
                 Any Other Context <span style={{fontWeight: 400, textTransform: 'none', color: 'var(--gray-400)'}}>(optional)</span>
