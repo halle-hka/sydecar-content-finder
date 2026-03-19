@@ -534,7 +534,7 @@ const LOGO_URL = "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAMgAAAApCAYAAABw
 // 3. Deploy the provided Google Apps Script as a web app and paste the URL below
 // ============================================================================
 const SHEET_CSV_URL = ""; // e.g. "https://docs.google.com/spreadsheets/d/e/2PACX-.../pub?output=csv"
-const APPS_SCRIPT_URL = "https://script.google.com/macros/s/AKfycbwT2uCLWKUhOuBOCoSHLS7FLxNHVkNeGqftNP28gJaS5y5-h4a2wVzkP8HkWOALEQF5/exec";
+const APPS_SCRIPT_URL = "https://content-finder-proxy.halle-cc5.workers.dev";
 
 // ============================================================================
 // ASSET LIBRARY — 118 verified assets with live URLs
@@ -1050,21 +1050,15 @@ Be selective. Only tag dimensions that genuinely apply based on the title and as
       try {
         await fetch(APPS_SCRIPT_URL, {
           method: "POST",
-          mode: "no-cors",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            title: newAsset.title,
-            type: newAsset.type,
-            typeLabel: TYPE_LABELS[newAsset.type],
+            action: "add_asset",
             url: newAsset.url,
-            dealStage: (suggestedTags.dealStage || []).join(", "),
-            persona: (suggestedTags.persona || []).join(", "),
-            competitor: (suggestedTags.competitor || []).join(", "),
-            challenge: (suggestedTags.challenge || []).join(", ")
+            title: newAsset.title
           })
         });
       } catch (err) {
-        // no-cors means we can't read the response, but the request still goes through
+        // Best-effort save
       }
     }
 
