@@ -4,6 +4,7 @@ on:
   push:
     branches: [main]
     paths: [worker/**]
+  workflow_dispatch:
 
 jobs:
   deploy:
@@ -17,9 +18,8 @@ jobs:
           apiToken: ${{ secrets.CLOUDFLARE_API_TOKEN }}
           accountId: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
           workingDirectory: worker
+          wranglerVersion: "3.99.0"
           secrets: |
             HUBSPOT_TOKEN
-            GH_PAT
         env:
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
-          GH_PAT: ${{ secrets.GH_PAT }}
