@@ -12,6 +12,18 @@
 // ---------------------------------------------------------------------------
 // Deal stage label lookup
 // ---------------------------------------------------------------------------
+// HubSpot lifecycle stage values -> readable labels
+const LIFECYCLE_LABELS = {
+  "subscriber": "Subscriber",
+  "lead": "Lead",
+  "marketingqualifiedlead": "Marketing Qualified Lead",
+  "salesqualifiedlead": "Sales Qualified Lead",
+  "opportunity": "Opportunity",
+  "customer": "Customer",
+  "evangelist": "Evangelist",
+  "other": "Other",
+};
+
 const STAGE_LABELS = {
   "17296960": "SQL",
   "102737501": "Lead",
@@ -237,8 +249,8 @@ async function getDealContext(dealId, env) {
     result.competitor = contact.properties.competitor || "";
 
     // Use contact lifecycle stage instead of deal stage
-    const lcs = contact.properties.lifecyclestage || "";
-    if (lcs) result.dealStage = lcs.charAt(0).toUpperCase() + lcs.slice(1).toLowerCase();
+    const lcs = (contact.properties.lifecyclestage || "").toLowerCase();
+    if (lcs) result.dealStage = LIFECYCLE_LABELS[lcs] || lcs;
 
     const lqNotes = contact.properties.lead_qualification_notes || "";
     if (lqNotes) result.notes = (result.notes ? result.notes + "\n\n" : "") + lqNotes;
@@ -260,8 +272,8 @@ async function getContactContext(contactId, env) {
   const name = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
 
   // Always use lifecycle stage
-  const lcs = contact.properties.lifecyclestage || "";
-  const lifecycleLabel = lcs ? lcs.charAt(0).toUpperCase() + lcs.slice(1).toLowerCase() : "";
+  const lcs = (contact.properties.lifecyclestage || "").toLowerCase();
+  const lifecycleLabel = lcs ? (LIFECYCLE_LABELS[lcs] || lcs) : "";
 
   const result = {
     contactId,
