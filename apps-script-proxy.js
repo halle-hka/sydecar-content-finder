@@ -277,7 +277,7 @@ function getDealContext(dealId) {
 // Action: Get contact context (segment + associated deal stage)
 // ---------------------------------------------------------------------------
 function getContactContext(contactId) {
-  var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,company,competitor,lead_qualification_notes&associations=deals", {});
+  var contact = hubspotFetch("/crm/v3/objects/contacts/" + contactId + "?properties=firstname,lastname,email,customer_segment,company,competitor,lead_qualification_notes,lifecyclestage&associations=deals", {});
 
   var name = [(contact.properties.firstname || ""), (contact.properties.lastname || "")].join(" ").trim();
 
@@ -305,6 +305,12 @@ function getContactContext(contactId) {
     var dealDesc = deal.properties.description || "";
     if (dealDesc) {
       result.notes = (result.notes ? result.notes + "\n\n" : "") + dealDesc;
+    }
+  } else {
+    // No deal — fall back to lifecycle stage
+    var lcs = contact.properties.lifecyclestage || "";
+    if (lcs) {
+      result.dealStage = lcs.charAt(0).toUpperCase() + lcs.slice(1).toLowerCase();
     }
   }
 
