@@ -19,7 +19,7 @@ jobs:
           workingDirectory: worker
           secrets: |
             HUBSPOT_TOKEN
-            GITHUB_TOKEN
+            GH_PAT
         env:
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
-          GITHUB_TOKEN: ${{ secrets.GH_PAT_TOKEN }}
+          GH_PAT: ${{ secrets.GH_PAT }}

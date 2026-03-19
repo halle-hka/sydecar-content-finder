@@ -291,7 +291,7 @@ async function getContactContext(contactId, env) {
 // Trigger GitHub Actions workflow (add-asset)
 // ---------------------------------------------------------------------------
 async function triggerAddAsset(url, title, env) {
-  const token = env.GITHUB_TOKEN;
+  const token = env.GH_PAT;
   const repo = env.GITHUB_REPO || "halle-hka/sydecar-content-finder";
   if (!token) throw new Error("GITHUB_TOKEN not configured");
 
