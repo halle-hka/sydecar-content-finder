@@ -1127,7 +1127,7 @@ function ContentRequest({ prospectName, dealStage, persona, challenges }) {
 // ============================================================================
 // ADD ASSET — Auto-categorize new assets with Claude
 // ============================================================================
-function AddAsset({ onAdd, apiKey }) {
+function AddAsset({ onAdd }) {
   const [open, setOpen] = useState(false);
   const [title, setTitle] = useState("");
   const [url, setUrl] = useState("");
@@ -1185,24 +1185,7 @@ Return ONLY a JSON object with these 4 keys, each containing an array of matchin
 Be selective. Only tag dimensions that genuinely apply based on the title and asset type. If unsure about competitors, use ["None / not sure"].`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 512,
-          messages: [{ role: "user", content: prompt }]
-        })
-      });
-
-      if (!response.ok) throw new Error(`API returned ${response.status}`);
-
-      const data = await response.json();
+      const data = await callClaudeProxy([{ role: "user", content: prompt }], 512);
       let text = data.content[0].text.trim();
       if (text.startsWith("```")) {
         text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
@@ -1589,9 +1572,18 @@ function ProspectSearch({ onSelect }) {
   );
 }
 
+// Helper: route Claude calls through Cloudflare Worker
+async function callClaudeProxy(messages, maxTokens = 1024) {
+  const resp = await fetch(APPS_SCRIPT_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ action: "claude", messages, max_tokens: maxTokens })
+  });
+  if (!resp.ok) throw new Error(`Proxy returned ${resp.status}`);
+  return resp.json();
+}
+
 function App() {
-  const [apiKey, setApiKey] = useState(() => sessionStorage.getItem("sydecar_cf_key") || "");
-  const [keyInput, setKeyInput] = useState("");
   const [assets, setAssets] = useState(ASSETS);
   const [dealStage, setDealStage] = useState("");
   const [persona, setPersona] = useState("");
@@ -1611,21 +1603,10 @@ function App() {
     if (n) setContext(n);
 
     // Use Claude to extract challenges from meeting notes
-    if (mn && apiKey) {
+    if (mn) {
       setAnalyzingNotes(true);
       try {
-        const resp = await fetch("https://api.anthropic.com/v1/messages", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-            "x-api-key": apiKey,
-            "anthropic-version": "2023-06-01",
-            "anthropic-dangerous-direct-browser-access": "true"
-          },
-          body: JSON.stringify({
-            model: "claude-sonnet-4-20250514",
-            max_tokens: 256,
-            messages: [{ role: "user", content: `You are analyzing sales meeting notes for Sydecar, a private markets infrastructure platform.
+        const data = await callClaudeProxy([{ role: "user", content: `You are analyzing sales meeting notes for Sydecar, a private markets infrastructure platform.
 
 Based on these notes, extract TWO types of things:
 1. **Specific topics** the prospect asked about or expressed interest in (e.g., "Form ADV", "secondary transactions", "layered SPVs", "K-1 distribution", "506(b) vs 506(c)", "carried interest", "LP reporting")
@@ -1640,38 +1621,19 @@ If the notes don't reveal anything useful, return an empty array [].
 Meeting notes:
 ${mn}
 
-Return ONLY a JSON array of strings, nothing else. Example: ["Form ADV compliance", "Secondary transactions", "LP reporting", "Speed to close"]` }]
-          })
-        });
-        if (resp.ok) {
-          const data = await resp.json();
-          let text = data.content[0].text.trim();
-          text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
-          const extracted = JSON.parse(text);
-          if (Array.isArray(extracted) && extracted.length > 0) {
-            setChallenges(extracted);
-          }
+Return ONLY a JSON array of strings, nothing else. Example: ["Form ADV compliance", "Secondary transactions", "LP reporting", "Speed to close"]` }], 256);
+        let text = data.content[0].text.trim();
+        text = text.replace(/^```(?:json)?\s*/, "").replace(/\s*```$/, "");
+        const extracted = JSON.parse(text);
+        if (Array.isArray(extracted) && extracted.length > 0) {
+          setChallenges(extracted);
         }
       } catch (err) {
         // Silently fail — user can still pick challenges manually
       }
       setAnalyzingNotes(false);
     }
-  }, [apiKey]);
-
-  const handleSetKey = (e) => {
-    e.preventDefault();
-    const k = keyInput.trim();
-    if (!k.startsWith("sk-ant-")) return;
-    sessionStorage.setItem("sydecar_cf_key", k);
-    setApiKey(k);
-  };
-
-  const handleClearKey = () => {
-    sessionStorage.removeItem("sydecar_cf_key");
-    setApiKey("");
-    setKeyInput("");
-  };
+  }, []);
 
   // Load assets from Google Sheet on mount (if configured)
   useEffect(() => {
@@ -1725,27 +1687,7 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
 { "index": <1-based asset number>, "rationale": "<one sentence>" }`;
 
     try {
-      const response = await fetch("https://api.anthropic.com/v1/messages", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-api-key": apiKey,
-          "anthropic-version": "2023-06-01",
-          "anthropic-dangerous-direct-browser-access": "true"
-        },
-        body: JSON.stringify({
-          model: "claude-sonnet-4-20250514",
-          max_tokens: 1024,
-          messages: [{ role: "user", content: userPrompt }]
-        })
-      });
-
-      if (!response.ok) {
-        const errBody = await response.text();
-        throw new Error(`API returned ${response.status}: ${errBody}`);
-      }
-
-      const data = await response.json();
+      const data = await callClaudeProxy([{ role: "user", content: userPrompt }]);
       const text = data.content[0].text.trim();
 
       let cleaned = text;
@@ -1761,62 +1703,14 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
       setResults(recommendations);
       setStatus("results");
     } catch (err) {
-      if (ANTHROPIC_API_KEY === "YOUR_API_KEY_HERE") {
-        setError("Paste your Anthropic API key into the ANTHROPIC_API_KEY constant at the top of this file.");
-      } else {
-        setError(err.message);
-      }
+      setError(err.message);
       setStatus("error");
     }
-  }, [dealStage, persona, competitor, challenges, context, assets, apiKey]);
+  }, [dealStage, persona, competitor, challenges, context, assets]);
 
   const handleAddAsset = useCallback((newAsset) => {
     setAssets(prev => [...prev, newAsset]);
   }, []);
-
-  if (!apiKey) {
-    return (
-      <div className="container">
-        <div className="header">
-          <div className="header-logo"><img src={LOGO_URL} alt="Sydecar" height="32" /></div>
-          <h1>Content Finder</h1>
-          <p>Find the right assets for your prospect in seconds.</p>
-        </div>
-        <div className="form-card" style={{maxWidth: 480, margin: "0 auto"}}>
-          <form onSubmit={handleSetKey}>
-            <div className="form-group">
-              <label htmlFor="apiKeyInput">Anthropic API Key</label>
-              <input
-                id="apiKeyInput"
-                type="password"
-                value={keyInput}
-                onChange={e => setKeyInput(e.target.value)}
-                placeholder="sk-ant-..."
-                style={{fontFamily: "var(--font-sans)", fontSize: "0.95rem", padding: "0.6rem 0.75rem", border: "1px solid var(--gray-300)", borderRadius: 8, background: "var(--white)", color: "var(--gray-800)"}}
-                autoFocus
-              />
-              <p style={{fontSize: "0.8rem", color: "var(--gray-400)", marginTop: "0.5rem", lineHeight: 1.5}}>
-                Your key is stored in this browser tab only and is never sent anywhere except the Anthropic API.
-              </p>
-              <details style={{marginTop: "0.75rem", fontSize: "0.8rem", color: "var(--gray-400)"}}>
-                <summary style={{cursor: "pointer", fontWeight: 500, color: "var(--gray-500)"}}>Where do I find my API key?</summary>
-                <ol style={{marginTop: "0.5rem", paddingLeft: "1.25rem", lineHeight: 1.7}}>
-                  <li>Go to <strong>console.anthropic.com</strong> and sign in</li>
-                  <li>Click <strong>API Keys</strong> in the left sidebar</li>
-                  <li>Click <strong>Create Key</strong>, give it a name, and copy the key</li>
-                  <li>Paste it above. It starts with <code style={{background: "var(--gray-100)", padding: "0.1rem 0.3rem", borderRadius: 3}}>sk-ant-</code></li>
-                </ol>
-                <p style={{marginTop: "0.4rem"}}>If you don't have an Anthropic account, ask your team lead for a key or create one at console.anthropic.com.</p>
-              </details>
-            </div>
-            <button type="submit" className="btn btn-primary" disabled={!keyInput.trim().startsWith("sk-ant-")}>
-              Continue
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
     <div className="container">
@@ -1824,8 +1718,6 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
         <div className="header-logo"><img src={LOGO_URL} alt="Sydecar" height="32" /></div>
         <h1>Content Finder</h1>
         <p>Find the right assets for your prospect in seconds.</p>
-        <button type="button" onClick={handleClearKey} style={{position: "absolute", top: 24, right: 24, background: "none", border: "1px solid var(--gray-300)", borderRadius: 6, padding: "0.3rem 0.7rem", fontSize: "0.75rem", color: "var(--gray-400)", cursor: "pointer"}}>
-          Change API key
         </button>
       </div>
 
@@ -1910,7 +1802,7 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
         </div>
       )}
 
-      <AddAsset onAdd={handleAddAsset} apiKey={apiKey} />
+      <AddAsset onAdd={handleAddAsset} />
       <AssetLibrary assets={assets} />
     </div>
   );

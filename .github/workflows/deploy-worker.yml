@@ -22,6 +22,8 @@ jobs:
           secrets: |
             HUBSPOT_TOKEN
             ASANA_TOKEN
+            ANTHROPIC_API_KEY
         env:
           HUBSPOT_TOKEN: ${{ secrets.HUBSPOT_TOKEN }}
           ASANA_TOKEN: ${{ secrets.ASANA_TOKEN }}
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}

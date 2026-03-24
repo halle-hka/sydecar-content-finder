@@ -347,6 +347,35 @@ async function sendContentRequest(payload, env) {
 }
 
 // ---------------------------------------------------------------------------
+// Proxy Claude API calls
+// ---------------------------------------------------------------------------
+async function callClaude(messages, maxTokens, env) {
+  const token = env.ANTHROPIC_API_KEY;
+  if (!token) throw new Error("ANTHROPIC_API_KEY not configured");
+
+  const resp = await fetch("https://api.anthropic.com/v1/messages", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      "x-api-key": token,
+      "anthropic-version": "2023-06-01",
+    },
+    body: JSON.stringify({
+      model: "claude-sonnet-4-20250514",
+      max_tokens: maxTokens || 1024,
+      messages,
+    }),
+  });
+
+  if (!resp.ok) {
+    const err = await resp.text();
+    throw new Error(`Anthropic API returned ${resp.status}: ${err}`);
+  }
+
+  return resp.json();
+}
+
+// ---------------------------------------------------------------------------
 // Trigger GitHub Actions workflow (add-asset)
 // ---------------------------------------------------------------------------
 async function triggerAddAsset(url, title, env) {
@@ -424,6 +453,12 @@ export default {
           if (!url) return jsonResp({ error: "url is required" });
           const ok = await triggerAddAsset(url, payload.title, env);
           return jsonResp(ok ? { success: true } : { error: "GitHub API failed" });
+        }
+
+        case "claude": {
+          if (!payload.messages) return jsonResp({ error: "messages is required" });
+          const claudeResp = await callClaude(payload.messages, payload.max_tokens || 1024, env);
+          return jsonResp(claudeResp);
         }
 
         case "content_request": {
