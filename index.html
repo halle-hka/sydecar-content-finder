@@ -636,12 +636,12 @@ const ASSETS = [
   { title: "Diving into Data: What Fund Terms Are Emerging Managers Using?", type: "report", url: "https://sydecar.io/gated-content/emerging-manager-terms", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "None / not sure", "Building trust with LPs", "Pricing"] },
   { title: "State of the Secondaries Market, August 2024", type: "report", url: "https://sydecar.io/gated-content/secondaries-report-2024", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "None / not sure", "Secondary transactions"] },
   { title: "The Practical Guide to Setting Up a Secondary SPV", type: "report", url: "https://sydecar.io/guides/secondaries-guide", tags: ["Warm Opportunity", "Hot Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "None / not sure", "Secondary transactions", "Speed"] },
-  { title: "SPVs: Launch, Onboard, Fund", type: "enablement", url: "https://sydecar.io/spvs", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "None / not sure", "Speed", "Sydecar credibility / brand"] },
-  { title: "Fund+: Fund Administration for Emerging Managers", type: "enablement", url: "https://sydecar.io/fund+", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "Fund Manager", "None / not sure", "Building trust with LPs", "Sydecar credibility / brand"] },
-  { title: "Pricing", type: "enablement", url: "https://sydecar.io/pricing", tags: ["SQL", "Warm Opportunity", "Hot Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "RIA", "Broker-Dealer", "AngelList", "Carta", "Allocations", "Manual / DIY", "Pricing"] },
-  { title: "Solutions: Emerging Managers", type: "enablement", url: "https://sydecar.io/solutions/emerging-managers", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "None / not sure", "Building trust with LPs", "Sydecar credibility / brand"] },
-  { title: "Solutions: Scout Funds", type: "enablement", url: "https://sydecar.io/solutions/scout-funds", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "Fund Manager", "None / not sure", "Building trust with LPs"] },
-  { title: "Solutions: Co-Investments", type: "enablement", url: "https://sydecar.io/solutions/co-investments", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "None / not sure", "Layered SPVs / complex structures"] },
+  { title: "SPVs: Launch, Onboard, Fund", type: "landing", url: "https://sydecar.io/spvs", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "None / not sure", "Speed", "Sydecar credibility / brand"] },
+  { title: "Fund+: Fund Administration for Emerging Managers", type: "landing", url: "https://sydecar.io/fund+", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "Fund Manager", "None / not sure", "Building trust with LPs", "Sydecar credibility / brand"] },
+  { title: "Pricing", type: "landing", url: "https://sydecar.io/pricing", tags: ["SQL", "Warm Opportunity", "Hot Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "RIA", "Broker-Dealer", "AngelList", "Carta", "Allocations", "Manual / DIY", "Pricing"] },
+  { title: "Solutions: Emerging Managers", type: "landing", url: "https://sydecar.io/solutions/emerging-managers", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "None / not sure", "Building trust with LPs", "Sydecar credibility / brand"] },
+  { title: "Solutions: Scout Funds", type: "landing", url: "https://sydecar.io/solutions/scout-funds", tags: ["SQL", "Warm Opportunity", "Emerging Manager / Syndicate", "Fund Manager", "None / not sure", "Building trust with LPs"] },
+  { title: "Solutions: Co-Investments", type: "landing", url: "https://sydecar.io/solutions/co-investments", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "None / not sure", "Layered SPVs / complex structures"] },
   { title: "SPV Interactive Demo", type: "demo", url: "https://sydecar.io/spv-demo-form", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "Founder", "AngelList", "Carta", "Allocations", "Manual / DIY", "Speed", "Sydecar credibility / brand"] },
   { title: "Additional Closes Interactive Demo", type: "demo", url: "https://sydecar.io/product/interactive-demo/additional-closes-interactive-demo", tags: ["Warm Opportunity", "Hot Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "Occasional Deal Lead", "None / not sure", "Speed"] },
   { title: "Sydecar Named to 2025 Inc. 5000 List of America's Fastest-Growing Private Companies", type: "pr", url: "https://finance.yahoo.com/news/sydecar-named-2025-inc-5000-143000411.html", tags: ["SQL", "Warm Opportunity", "Fund Manager", "Emerging Manager / Syndicate", "None / not sure", "Sydecar credibility / brand"] },
@@ -855,6 +855,7 @@ const TYPE_LABELS = {
   blog: "Blog post",
   learn: "Learn center",
   enablement: "Sales one-pager",
+  landing: "Landing page",
   report: "Gated report",
   guide: "Guide / checklist",
   webinar: "Webinar",
@@ -1664,7 +1665,7 @@ Return ONLY a JSON array of strings, nothing else. Example: ["Form ADV complianc
 
   const handleSubmit = useCallback(async (e) => {
     e.preventDefault();
-    if (!dealStage || !persona || challenges.length === 0) return;
+    if (!dealStage && !persona && challenges.length === 0 && !competitor && !context) return;
 
     setStatus("loading");
     setResults([]);
@@ -1677,10 +1678,10 @@ Return ONLY a JSON array of strings, nothing else. Example: ["Form ADV complianc
     const userPrompt = `You are a sales enablement assistant for Sydecar, a private markets infrastructure platform.
 
 A sales rep needs content recommendations for this prospect:
-- Deal stage: ${dealStage}
-- Persona: ${persona}
-- Competitor mentioned: ${competitor}
-- Key challenges: ${challenges.join(", ")}${context ? `\n- Additional context: ${context}` : ""}
+- Deal stage: ${dealStage || "Not specified"}
+- Persona: ${persona || "Not specified"}
+- Competitor mentioned: ${competitor || "None / not sure"}
+- Key challenges: ${challenges.length > 0 ? challenges.join(", ") : "Not specified"}${context ? `\n- Additional context: ${context}` : ""}
 
 Here is the full asset library (numbered):
 ${assetList}
@@ -1728,8 +1729,8 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
         <form onSubmit={handleSubmit}>
           <div className="form-grid">
             <ProspectSearch onSelect={handleProspectSelect} />
-            <SelectField id="dealStage" label="Lifecycle Stage" options={DEAL_STAGES} value={dealStage} onChange={setDealStage} required placeholder="Select..." />
-            <SelectField id="persona" label="Prospect Persona" options={PERSONAS} value={persona} onChange={setPersona} required placeholder="Select..." />
+            <SelectField id="dealStage" label="Lifecycle Stage" options={DEAL_STAGES} value={dealStage} onChange={setDealStage} placeholder="Select..." />
+            <SelectField id="persona" label="Prospect Persona" options={PERSONAS} value={persona} onChange={setPersona} placeholder="Select..." />
             <SelectField id="competitor" label="Competitor Mentioned" options={COMPETITORS} value={competitor} onChange={setCompetitor} />
             <div className="form-group">
               <label htmlFor="challenge">Key Challenge(s) {analyzingNotes && <span style={{fontWeight: 400, textTransform: "none", color: "var(--primary)", fontSize: "0.75rem"}}> Analyzing notes...</span>}</label>
@@ -1755,6 +1756,7 @@ Return ONLY a JSON array. No other text, no markdown fences. Each element:
                   }}
                 />
               </div>
+              <p className="hint">Press Enter after each challenge to add it as a tag.</p>
             </div>
             <div className="form-group full-width">
               <label htmlFor="context">
